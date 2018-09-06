@@ -92,12 +92,7 @@ class BaseModel():
         acc_ret = OrderedDict()
         for name in self.accuracy_names:
             if isinstance(name, str):
-                if name.endswith('REAL'):
-                    accuracy = getattr(self, 'acc_' + name)
-                    acc_ret[name] = (torch.mean((accuracy > 0.5).double()))  # MSE
-                elif name.endswith('FAKE'):
-                    accuracy = getattr(self, 'acc_' + name)
-                    acc_ret[name] = (torch.mean((accuracy <= 0.5).double()))  # MSE
+                acc_ret[name] = getattr(self, 'acc_' + name)
         return acc_ret
 
     # save models to the disk

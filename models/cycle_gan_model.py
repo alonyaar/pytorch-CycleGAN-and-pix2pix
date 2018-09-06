@@ -5,7 +5,6 @@ from util.image_pool import ImagePool
 from .base_model import BaseModel
 from . import networks
 
-
 class CycleGANModel(BaseModel):
     def name(self):
         return 'CycleGANModel'
@@ -30,13 +29,11 @@ class CycleGANModel(BaseModel):
 
         # Add discriminators accuracy (consider that the output of D is in shape (1,23,36))
         self.accuracy_names = ['D_A_REAL', 'D_A_FAKE']
-        self.accuracy_len = opt.print_freq
-        if len(opt.gpu_ids) > 0:
-            self.acc_D_A_REAL = torch.zeros((1, self.accuracy_len, 36, 23)).cuda()
-            self.acc_D_A_FAKE = torch.zeros((1, self.accuracy_len, 36, 23)).cuda()
-        else:
-            self.acc_D_A_REAL = torch.zeros((1, self.accuracy_len, 36, 23))
-            self.acc_D_A_FAKE = torch.zeros((1, self.accuracy_len, 36, 23))
+        self.accuracy_window_len = opt.print_freq
+        self.acc_D_A_fake_queue = []
+        self.acc_D_A_real_queue = []
+        self.acc_D_A_REAL = 0
+        self.acc_D_A_FAKE = 0
 
         # specify the images you want to save/display. The program will call base_model.get_current_visuals
         visual_names_A = ['real_A', 'fake_B', 'rec_A']
@@ -114,17 +111,14 @@ class CycleGANModel(BaseModel):
         return loss_D
 
     def update_accuracy(self, pred_real, pred_fake):
-        if (self.acc_D_A_REAL[:, :, -1] == 0).all():  # If the window isn't full yet.
-            for i in range(self.accuracy_len):
-                if (self.acc_D_A_REAL[:, i] == 0).all():
-                    self.acc_D_A_REAL[:, i] = pred_real.squeeze(0)
-                    self.acc_D_A_FAKE[:, i] = pred_fake.squeeze(0)
-                    break
-        else:  # Else, remove first in queue, append to the end.
-            self.acc_D_A_REAL = self.acc_D_A_REAL[:, 1:]
-            self.acc_D_A_FAKE = self.acc_D_A_FAKE[:, 1:]
-            self.acc_D_A_REAL = torch.cat((self.acc_D_A_REAL, pred_real), dim=1)
-            self.acc_D_A_FAKE = torch.cat((self.acc_D_A_FAKE, pred_fake), dim=1)
+        pred_real = pred_real.squeeze(0)
+        pred_fake = pred_fake.squeeze(0)
+        assert len(self.acc_D_A_real_queue) == len(self.acc_D_A_fake_queue)
+        if len(self.acc_D_A_real_queue) >= self.accuracy_window_len:
+            self.acc_D_A_real_queue.pop(0)
+            self.acc_D_A_fake_queue.pop(0)
+        self.acc_D_A_real_queue.append(torch.mean((pred_real > 0.5).double()))
+        self.acc_D_A_fake_queue.append(torch.mean((pred_fake <= 0.5).double()))
 
     def backward_D_A(self):
         fake_B = self.fake_B_pool.query(self.fake_B)
