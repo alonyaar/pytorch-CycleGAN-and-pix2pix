@@ -24,6 +24,7 @@ class BaseModel():
         if opt.resize_or_crop != 'scale_width':
             torch.backends.cudnn.benchmark = True
         self.loss_names = []
+        self.accuracy_names = []
         self.model_names = []
         self.visual_names = []
         self.image_paths = []
@@ -86,6 +87,18 @@ class BaseModel():
                 # float(...) works for both scalar tensor and float number
                 errors_ret[name] = float(getattr(self, 'loss_' + name))
         return errors_ret
+
+    def get_current_accuracies(self):
+        acc_ret = OrderedDict()
+        for name in self.accuracy_names:
+            if isinstance(name, str):
+                if name.endswith('REAL'):
+                    accuracy = getattr(self, 'acc_' + name)
+                    acc_ret[name] = (torch.mean((accuracy > 0.5).double()))  # MSE
+                elif name.endswith('FAKE'):
+                    accuracy = getattr(self, 'acc_' + name)
+                    acc_ret[name] = (torch.mean((accuracy <= 0.5).double()))  # MSE
+        return acc_ret
 
     # save models to the disk
     def save_networks(self, which_epoch):

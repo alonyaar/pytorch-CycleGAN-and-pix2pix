@@ -2,6 +2,7 @@ import numpy as np
 import os
 import ntpath
 import time
+import torch
 from . import util
 from . import html
 from scipy.misc import imresize
@@ -161,3 +162,8 @@ class Visualizer():
         print(message)
         with open(self.log_name, "a") as log_file:
             log_file.write('%s\n' % message)
+
+    def plot_accuracy(self, epoch, i, accuracies):
+        key = "%d.%d" % (epoch, i)
+        for acc_type, acc_val in accuracies.items():
+            print("cnvrg_linechart_Events group: '%s' key: \"%s\" value: \"%.4f\"" % (acc_type, key, acc_val))

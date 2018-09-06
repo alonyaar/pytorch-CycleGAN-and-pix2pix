@@ -37,11 +37,13 @@ if __name__ == '__main__':
 
             if total_steps % opt.print_freq == 0:
                 losses = model.get_current_losses()
+                accuracies = model.get_current_accuracies()
                 t = (time.time() - iter_start_time) / opt.batchSize
                 visualizer.print_current_losses(epoch, epoch_iter, losses, t, t_data)
                 if opt.display_id > 0:
                     visualizer.plot_current_losses(epoch, float(epoch_iter) / dataset_size, opt, losses)
 
+                visualizer.plot_accuracy(epoch, total_steps, accuracies)
             if total_steps % opt.save_latest_freq == 0:
                 print('saving the latest model (epoch %d, total_steps %d)' %
                       (epoch, total_steps))

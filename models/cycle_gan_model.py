@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 import itertools
 from util.image_pool import ImagePool
 from .base_model import BaseModel
@@ -26,6 +27,13 @@ class CycleGANModel(BaseModel):
 
         # specify the training losses you want to print out. The program will call base_model.get_current_losses
         self.loss_names = ['D_A', 'G_A', 'cycle_A', 'idt_A', 'D_B', 'G_B', 'cycle_B', 'idt_B']
+
+        # Add discriminators accuracy (consider that the output of D is in shape (1,23,36))
+        self.accuracy_names = ['D_A_REAL', 'D_A_FAKE']
+        self.accuracy_len = opt.print_freq
+        self.acc_D_A_REAL = torch.zeros((1, self.accuracy_len, 36, 23))
+        self.acc_D_A_FAKE = torch.zeros((1, self.accuracy_len, 36, 23))
+
         # specify the images you want to save/display. The program will call base_model.get_current_visuals
         visual_names_A = ['real_A', 'fake_B', 'rec_A']
         visual_names_B = ['real_B', 'fake_A', 'rec_B']
@@ -84,7 +92,7 @@ class CycleGANModel(BaseModel):
         self.fake_A = self.netG_B(self.real_B)
         self.rec_B = self.netG_A(self.fake_A)
 
-    def backward_D_basic(self, netD, real, fake):
+    def backward_D_basic(self, netD, real, fake, compute_accuracy=False):
         # Real
         pred_real = netD(real)
         loss_D_real = self.criterionGAN(pred_real, True)
@@ -95,11 +103,28 @@ class CycleGANModel(BaseModel):
         loss_D = (loss_D_real + loss_D_fake) * 0.5
         # backward
         loss_D.backward()
+
+        if compute_accuracy:
+            self.update_accuracy(pred_real, pred_fake)
+
         return loss_D
+
+    def update_accuracy(self, pred_real, pred_fake):
+        if (self.acc_D_A_REAL[:, :, -1] == 0).all():  # If the window isn't full yet.
+            for i in range(self.accuracy_len):
+                if (self.acc_D_A_REAL[:, i] == 0).all():
+                    self.acc_D_A_REAL[:, i] = pred_real.squeeze(0)
+                    self.acc_D_A_FAKE[:, i] = pred_fake.squeeze(0)
+                    break
+        else:  # Else, remove first in queue, append to the end.
+            self.acc_D_A_REAL = self.acc_D_A_REAL[:, 1:]
+            self.acc_D_A_FAKE = self.acc_D_A_FAKE[:, 1:]
+            self.acc_D_A_REAL = torch.cat((self.acc_D_A_REAL, pred_real), dim=1)
+            self.acc_D_A_FAKE = torch.cat((self.acc_D_A_FAKE, pred_fake), dim=1)
 
     def backward_D_A(self):
         fake_B = self.fake_B_pool.query(self.fake_B)
-        self.loss_D_A = self.backward_D_basic(self.netD_A, self.real_B, fake_B)
+        self.loss_D_A = self.backward_D_basic(self.netD_A, self.real_B, fake_B, compute_accuracy=True)
 
     def backward_D_B(self):
         fake_A = self.fake_A_pool.query(self.fake_A)
