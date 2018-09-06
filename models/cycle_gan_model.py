@@ -119,6 +119,8 @@ class CycleGANModel(BaseModel):
             self.acc_D_A_fake_queue.pop(0)
         self.acc_D_A_real_queue.append(torch.mean((pred_real > 0.5).double()))
         self.acc_D_A_fake_queue.append(torch.mean((pred_fake <= 0.5).double()))
+        self.acc_D_A_FAKE = float(sum(self.acc_D_A_fake_queue))
+        self.acc_D_A_REAL = float(sum(self.acc_D_A_real_queue))
 
     def backward_D_A(self):
         fake_B = self.fake_B_pool.query(self.fake_B)
