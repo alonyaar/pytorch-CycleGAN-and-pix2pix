@@ -31,8 +31,12 @@ class CycleGANModel(BaseModel):
         # Add discriminators accuracy (consider that the output of D is in shape (1,23,36))
         self.accuracy_names = ['D_A_REAL', 'D_A_FAKE']
         self.accuracy_len = opt.print_freq
-        self.acc_D_A_REAL = torch.zeros((1, self.accuracy_len, 36, 23))
-        self.acc_D_A_FAKE = torch.zeros((1, self.accuracy_len, 36, 23))
+        if len(opt.gpu_ids) > 0:
+            self.acc_D_A_REAL = torch.zeros((1, self.accuracy_len, 36, 23)).cuda()
+            self.acc_D_A_FAKE = torch.zeros((1, self.accuracy_len, 36, 23)).cuda()
+        else:
+            self.acc_D_A_REAL = torch.zeros((1, self.accuracy_len, 36, 23))
+            self.acc_D_A_FAKE = torch.zeros((1, self.accuracy_len, 36, 23))
 
         # specify the images you want to save/display. The program will call base_model.get_current_visuals
         visual_names_A = ['real_A', 'fake_B', 'rec_A']
