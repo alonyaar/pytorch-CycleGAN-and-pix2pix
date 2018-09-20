@@ -1,7 +1,8 @@
 import torch.utils.data as data
 from PIL import Image
 import torchvision.transforms as transforms
-
+import util.my_transforms as tfms
+import random
 
 class BaseDataset(data.Dataset):
     def __init__(self):
@@ -50,6 +51,40 @@ def get_transform(opt):
                        transforms.Normalize((0.5, 0.5, 0.5),
                                             (0.5, 0.5, 0.5))]
     return transforms.Compose(transform_list)
+
+
+def get_transform_with_masks(opt):
+    img_transform_list = []
+    if opt.resize_or_crop == 'resize_and_crop':
+        osize = [opt.loadSizeH, opt.loadSizeW]
+        ocrop = [opt.fineSizeH, opt.fineSizeW]
+        img_transform_list.append(transforms.Resize(osize, Image.BICUBIC))
+        img_transform_list.append(transforms.RandomCrop(ocrop))
+    elif opt.resize_or_crop == 'crop':
+        img_transform_list.append(transforms.RandomCrop(opt.fineSize))
+    elif opt.resize_or_crop == 'scale_width':
+        img_transform_list.append(transforms.Lambda(
+            lambda img: __scale_width(img, opt.fineSize)))
+    elif opt.resize_or_crop == 'scale_width_and_crop':
+        img_transform_list.append(transforms.Lambda(
+            lambda img: __scale_width(img, opt.loadSize)))
+        img_transform_list.append(transforms.RandomCrop(opt.fineSize))
+    elif opt.resize_or_crop == 'none':
+        img_transform_list.append(transforms.Lambda(
+            lambda img: __adjust(img)))
+    else:
+        raise ValueError('--resize_or_crop %s is not a valid option.' % opt.resize_or_crop)
+
+    if opt.isTrain and not opt.no_flip:
+        should_flip = int(random.random())
+        img_transform_list.append(tfms.RandomHorizontalFlip(should_flip))
+    mask_transform_list = img_transform_list.copy()
+
+    img_transform_list += [tfms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+    mask_transform_list += [tfms.ToTensor(is_binary_tensor=True)]
+
+    return transforms.Compose(img_transform_list), transforms.Compose(mask_transform_list)
+
 
 # just modify the width and height to be multiple of 4
 def __adjust(img):

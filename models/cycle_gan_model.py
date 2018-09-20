@@ -4,6 +4,7 @@ import itertools
 from util.image_pool import ImagePool
 from .base_model import BaseModel
 from . import networks
+from matplotlib import pyplot as plt
 
 class CycleGANModel(BaseModel):
     def name(self):
@@ -85,12 +86,19 @@ class CycleGANModel(BaseModel):
         self.real_A = input['A' if AtoB else 'B'].to(self.device)
         self.real_B = input['B' if AtoB else 'A'].to(self.device)
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
+        if self.with_masks:
+            self.real_A_mask = input['A_mask' if AtoB else 'B_mask'].to(self.device)
+            self.real_B_mask = input['B_mask' if AtoB else 'A_mask'].to(self.device)
 
     def forward(self):
         self.fake_B = self.netG_A(self.real_A)
+        if self.with_masks:
+            self.fake_B *= self.real_A_mask
         self.rec_A = self.netG_B(self.fake_B)
 
         self.fake_A = self.netG_B(self.real_B)
+        if self.with_masks:
+            self.fake_A *= self.real_B_mask
         self.rec_B = self.netG_A(self.fake_A)
 
     def backward_D_basic(self, netD, real, fake, compute_accuracy=False):
