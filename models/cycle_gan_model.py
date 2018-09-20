@@ -91,14 +91,12 @@ class CycleGANModel(BaseModel):
             self.real_B_mask = input['B_mask' if AtoB else 'A_mask'].to(self.device)
 
     def forward(self):
-        self.fake_B = self.netG_A(self.real_A)
-        if self.with_masks:
-            self.fake_B *= self.real_A_mask
+        G_A_output = self.netG_A(self.real_A)
+        self.fake_B = G_A_output * self.real_A_mask if self.with_masks else G_A_output
         self.rec_A = self.netG_B(self.fake_B)
 
-        self.fake_A = self.netG_B(self.real_B)
-        if self.with_masks:
-            self.fake_A *= self.real_B_mask
+        G_B_output = self.netG_B(self.real_B)
+        self.fake_A = G_B_output * self.real_B_mask if self.with_masks else G_B_output
         self.rec_B = self.netG_A(self.fake_A)
 
     def backward_D_basic(self, netD, real, fake, compute_accuracy=False):
