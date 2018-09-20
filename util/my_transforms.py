@@ -112,10 +112,11 @@ def to_tensor(pic, is_binary_tensor, threshold=127):
     # yikes, this transpose takes 80% of the loading time/CPU
     img = img.transpose(0, 1).transpose(0, 2).contiguous()
     if is_binary_tensor:
-        img = img > threshold
+        img[img < 127] = 0
 
     if isinstance(img, torch.ByteTensor):
-        return img.float()
+        result = img.float().div(255) if is_binary_tensor else img.float().div(255)
+        return result
     else:
         return img
 

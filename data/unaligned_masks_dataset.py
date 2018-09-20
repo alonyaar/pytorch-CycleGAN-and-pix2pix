@@ -4,6 +4,7 @@ from data.image_folder import make_dataset
 from PIL import Image
 import random
 from matplotlib import pyplot as plt
+import util.util as util
 import util.my_transforms as tfms
 import numpy as np
 import torch
