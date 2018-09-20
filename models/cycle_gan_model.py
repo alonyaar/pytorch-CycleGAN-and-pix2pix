@@ -83,12 +83,14 @@ class CycleGANModel(BaseModel):
 
     def set_input(self, input):
         AtoB = self.opt.which_direction == 'AtoB'
-        self.real_A = input['A' if AtoB else 'B'].to(self.device)
-        self.real_B = input['B' if AtoB else 'A'].to(self.device)
+        real_A = input['A' if AtoB else 'B'].to(self.device)
+        real_B = input['B' if AtoB else 'A'].to(self.device)
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
         if self.with_masks:
             self.real_A_mask = input['A_mask' if AtoB else 'B_mask'].to(self.device)
             self.real_B_mask = input['B_mask' if AtoB else 'A_mask'].to(self.device)
+        self.real_A = real_A * self.real_A_mask if self.with_masks else real_A
+        self.real_B = real_B * self.real_B_mask if self.with_masks else real_B
 
     def forward(self):
         G_A_output = self.netG_A(self.real_A)
@@ -130,6 +132,7 @@ class CycleGANModel(BaseModel):
 
     def backward_D_A(self):
         fake_B = self.fake_B_pool.query(self.fake_B)
+
         self.loss_D_A = self.backward_D_basic(self.netD_A, self.real_B, fake_B, compute_accuracy=True)
 
     def backward_D_B(self):
