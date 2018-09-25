@@ -6,7 +6,7 @@ from .base_model import BaseModel
 from . import networks
 from matplotlib import pyplot as plt
 import util.util as util
-
+from util import MobileNetV2
 
 class CycleGANModel(BaseModel):
     def name(self):
@@ -74,6 +74,11 @@ class CycleGANModel(BaseModel):
             self.criterionGAN = networks.GANLoss(use_lsgan=not opt.no_lsgan).to(self.device)
             self.criterionCycle = torch.nn.L1Loss()
             self.criterionIdt = torch.nn.L1Loss()
+
+            if self.mobile_net:
+                # Add MobileNet V2
+                self.criterionDeepFeatures = MobileNetV2.MobileNetLoss(self.gpu_ids == -1)
+
             # initialize optimizers
             self.optimizer_G = torch.optim.Adam(itertools.chain(self.netG_A.parameters(), self.netG_B.parameters()),
                                                 lr=opt.lr, betas=(opt.beta1, 0.999))
@@ -176,8 +181,14 @@ class CycleGANModel(BaseModel):
         else:
             self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
 
-        # combined loss
         self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B
+
+        if self.mobile_net:
+            # MobileNet Deep Features Loss
+            self.loss_deep_A = self.criterionDeepFeatures(self.real_A, self.fake_B) * lambda_A * 0.75
+            self.loss_deep_B = self.criterionDeepFeatures(self.real_B, self.fake_A) * lambda_B * 0.75
+            self.loss_G += self.loss_deep_A + self.loss_deep_B
+
         self.loss_G.backward()
 
     def optimize_parameters(self):

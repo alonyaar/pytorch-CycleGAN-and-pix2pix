@@ -51,6 +51,7 @@ class BaseOptions():
         parser.add_argument('--suffix', default='', type=str, help='customized suffix: opt.name = opt.name + suffix: e.g., {model}_{which_model_netG}_size{loadSize}')
         parser.add_argument('--mask_domain', default='', type=str, help='indicates which domain has paired mask image: [A,B,AB]')
         parser.add_argument('--mask_op', default='', type=str, help='operation to apply on mask: [""|"mult","cycle"]. mult: multiples mask with each output during training, cycle: cycle loss only considers masked area.')
+        parser.add_argument('--mobileNet', default=False, action='store_true', help='includes perceptual loss using MobileNet.')
         self.initialized = True
         return parser
 
