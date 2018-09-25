@@ -88,20 +88,22 @@ class CycleGANModel(BaseModel):
         real_A = input['A' if AtoB else 'B'].to(self.device)
         real_B = input['B' if AtoB else 'A'].to(self.device)
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
-        if self.mask_op != "":
+
+        if self.mask_op != "" and self.should_mask_A:
             self.real_A_mask = input['A_mask' if AtoB else 'B_mask'].to(self.device)
+        if self.mask_op != "" and self.should_mask_B:
             self.real_B_mask = input['B_mask' if AtoB else 'A_mask'].to(self.device)
 
-        self.real_A = real_A * self.real_A_mask if self.mask_op == "mult" else real_A
-        self.real_B = real_B * self.real_B_mask if self.mask_op == "mult" else real_B
+        self.real_A = real_A * self.real_A_mask if self.mask_op == "mult" and self.should_mask_A else real_A
+        self.real_B = real_B * self.real_B_mask if self.mask_op == "mult" and self.should_mask_B else real_B
 
     def forward(self):
         G_A_output = self.netG_A(self.real_A)
-        self.fake_B = G_A_output * self.real_A_mask if self.mask_op == "mult" else G_A_output
+        self.fake_B = G_A_output * self.real_A_mask if self.mask_op == "mult" and self.should_mask_A else G_A_output
         self.rec_A = self.netG_B(self.fake_B)
 
         G_B_output = self.netG_B(self.real_B)
-        self.fake_A = G_B_output * self.real_B_mask if self.mask_op == "mult" else G_B_output
+        self.fake_A = G_B_output * self.real_B_mask if self.mask_op == "mult" and self.should_mask_B else G_B_output
         self.rec_B = self.netG_A(self.fake_A)
 
     def backward_D_basic(self, netD, real, fake, compute_accuracy=False):
@@ -161,16 +163,19 @@ class CycleGANModel(BaseModel):
         self.loss_G_A = self.criterionGAN(self.netD_A(self.fake_B), True)
         # GAN loss D_B(G_B(B))
         self.loss_G_B = self.criterionGAN(self.netD_B(self.fake_A), True)
-        if self.mask_op == "cycle":
+
+        if self.mask_op == "cycle" and self.should_mask_A:
             # Forward cycle loss
             self.loss_cycle_A = self.criterionCycle(self.rec_A * self.real_A_mask, self.real_A * self.real_A_mask) * lambda_A
+        else:
+            self.loss_cycle_A = self.criterionCycle(self.rec_A, self.real_A) * lambda_A
+
+        if self.mask_op == "cycle" and self.should_mask_B:
             # Backward cycle loss
             self.loss_cycle_B = self.criterionCycle(self.rec_B * self. real_B_mask, self.real_B * self.real_B_mask) * lambda_B
         else:
-            # Forward cycle loss
-            self.loss_cycle_A = self.criterionCycle(self.rec_A, self.real_A) * lambda_A
-            # Backward cycle loss
             self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
+
         # combined loss
         self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B
         self.loss_G.backward()

@@ -29,7 +29,9 @@ class BaseModel():
         self.visual_names = []
         self.image_paths = []
         self.mask_op = opt.mask_op
-
+        self.should_mask_A = opt.mask_domain[0].lower() == "a"
+        self.should_mask_B = opt.mask_domain[-1].lower() == "b"
+        
     def set_input(self, input):
         self.input = input
 

@@ -1,5 +1,5 @@
 import os.path
-from data.base_dataset import BaseDataset, get_transform_with_masks
+from data.base_dataset import BaseDataset, get_transform, get_transform_with_masks
 from data.image_folder import make_dataset
 from PIL import Image
 import random
@@ -29,14 +29,24 @@ class UnalignedMasksDataset(BaseDataset):
         self.A_size = len(self.A_paths)
         self.B_size = len(self.B_paths)
 
-        self.dir_mask_A = os.path.join(opt.dataroot, opt.phase + "_masks_A")
-        self.dir_mask_B = os.path.join(opt.dataroot, opt.phase + "_masks_B")
-        self.A_masks_paths = sorted(make_dataset(self.dir_mask_A))
-        self.B_masks_paths = sorted(make_dataset(self.dir_mask_B))
-        assert(self.A_size == len(self.A_masks_paths) and self.B_size == len(self.B_masks_paths))
+        self.should_mask_A = opt.mask_domain[0].lower() == "a"
+        self.should_mask_B = opt.mask_domain[-1].lower() == "b"
 
-        self.transform_img_A, self.transform_mask_A = get_transform_with_masks(opt)
-        self.transform_img_B, self.transform_mask_B = get_transform_with_masks(opt)
+        if self.should_mask_A :
+            self.dir_mask_A = os.path.join(opt.dataroot, opt.phase + "_masks_A")
+            self.A_masks_paths = sorted(make_dataset(self.dir_mask_A))
+            assert (self.A_size == len(self.A_masks_paths))
+            self.transform_img_A, self.transform_mask_A = get_transform_with_masks(opt)
+        else:
+            self.transform_img_A = get_transform(opt)
+
+        if self.should_mask_B:
+            self.dir_mask_B = os.path.join(opt.dataroot, opt.phase + "_masks_B")
+            self.B_masks_paths = sorted(make_dataset(self.dir_mask_B))
+            assert(self.B_size == len(self.B_masks_paths))
+            self.transform_img_B, self.transform_mask_B = get_transform_with_masks(opt)
+        else:
+            self.transform_img_B = get_transform(opt)
 
     def __getitem__(self, index):
         index_A = index % self.A_size
@@ -47,17 +57,12 @@ class UnalignedMasksDataset(BaseDataset):
             index_B = random.randint(0, self.B_size - 1)
         B_path = self.B_paths[index_B]
 
-        A_mask_path = self.A_masks_paths[index_A]
-        B_mask_path = self.B_masks_paths[index_B]
-
         # print('(A, B) = (%d, %d)' % (index_A, index_B))
         A_img = Image.open(A_path).convert('RGB')
         B_img = Image.open(B_path).convert('RGB')
-        A_mask_img = Image.open(A_mask_path)
-        B_mask_img = Image.open(B_mask_path)
 
-        A, A_mask = self.transform_img_A(A_img), self.transform_mask_A(A_mask_img)
-        B, B_mask = self.transform_img_B(B_img), self.transform_mask_B(B_mask_img)
+        A = self.transform_img_A(A_img)
+        B = self.transform_img_B(B_img)
 
         if self.opt.which_direction == 'BtoA':
             input_nc = self.opt.output_nc
@@ -73,7 +78,22 @@ class UnalignedMasksDataset(BaseDataset):
         if output_nc == 1:  # RGB to gray
             tmp = B[0, ...] * 0.299 + B[1, ...] * 0.587 + B[2, ...] * 0.114
             B = tmp.unsqueeze(0)
-        return {'A': A, 'B': B, 'A_mask': A_mask, 'B_mask': B_mask, 'A_paths': A_path, 'B_paths': B_path}
+
+        images_dict = {'A': A, 'B': B, 'A_paths': A_path, 'B_paths': B_path}
+
+        if self.should_mask_A:
+            A_mask_path = self.A_masks_paths[index_A]
+            A_mask_img = Image.open(A_mask_path)
+            A_mask = self.transform_mask_A(A_mask_img)
+            images_dict['A_mask'] = A_mask
+
+        if self.should_mask_B:
+            B_mask_path = self.B_masks_paths[index_B]
+            B_mask_img = Image.open(B_mask_path)
+            B_mask = self.transform_mask_B(B_mask_img)
+            images_dict['B_mask'] = B_mask
+
+        return images_dict
 
     def __len__(self):
         return max(self.A_size, self.B_size)
