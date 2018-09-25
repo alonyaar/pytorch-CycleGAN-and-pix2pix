@@ -28,7 +28,7 @@ class BaseModel():
         self.model_names = []
         self.visual_names = []
         self.image_paths = []
-        self.with_masks = opt.dataset_mode == "unaligned_masks"
+        self.mask_op = opt.mask_op
 
     def set_input(self, input):
         self.input = input

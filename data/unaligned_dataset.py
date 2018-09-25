@@ -61,4 +61,4 @@ class UnalignedDataset(BaseDataset):
         return max(self.A_size, self.B_size)
 
     def name(self):
-        return 'UnalignedDataset'
+        return 'UnalignedDataset_With_Masks'
