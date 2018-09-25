@@ -128,6 +128,7 @@ class MobileNetV2(nn.Module):
 class MobileNetLoss(nn.Module):
     def __init__(self, use_gpu=True):
         super(MobileNetLoss, self).__init__()
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.net = MobileNetV2()
         self.net.eval()
         if use_gpu:
@@ -135,9 +136,11 @@ class MobileNetLoss(nn.Module):
         else:
             state_dict = torch.load('util/mobilenet_v2.pth.tar', map_location='cpu')
         self.net.load_state_dict(state_dict, strict=False)
+        self.net.to(self.device)
         self.loss = nn.MSELoss()
 
     def __call__(self, real, fake):
+        real, fake = real.to(self.device), fake.to(self.device)
         real = self.net(real)
         fake = self.net(fake)
         real_no_grads = real.detach()
